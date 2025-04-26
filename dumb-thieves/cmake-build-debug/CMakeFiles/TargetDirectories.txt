@@ -1,3 +1,0 @@
-C:/Users/hkere/CLionProjects/ProgramowanieRozproszone/Dumb-Thieves/dumb-thieves/cmake-build-debug/CMakeFiles/dumb_thieves.dir
-C:/Users/hkere/CLionProjects/ProgramowanieRozproszone/Dumb-Thieves/dumb-thieves/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/hkere/CLionProjects/ProgramowanieRozproszone/Dumb-Thieves/dumb-thieves/cmake-build-debug/CMakeFiles/rebuild_cache.dir
