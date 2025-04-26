@@ -20,3 +20,12 @@ do pasera, który odstawi rzeczy na miejsce.
 Procesy działają z różną prędkością, mogą wręcz przez jakiś czas odpoczywać. Nie powinno to blokować pracy innych procesów.
 
 Projekt na trójkę: brak paserów, domy można okradać bezustannie
+
+## How To Run
+```
+mkdir build
+cd build
+cmake ..
+make
+mpirun --hostfile ../hosts -np <number of processes> ./dumb_thieves
+```
