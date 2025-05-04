@@ -1,0 +1,6 @@
+{
+    "cmake.sourceDirectory": "/home/student/Project/Dumb-Thieves/dumb-thieves",
+    "files.associations": {
+        "communication.h": "c"
+    }
+}

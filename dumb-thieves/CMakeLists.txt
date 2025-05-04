@@ -8,6 +8,8 @@ add_executable(dumb_thieves
         logic.c
         communication.c
         utils.c
+        process.c
+        queue.c
 )
 
 target_include_directories(dumb_thieves PRIVATE include)
