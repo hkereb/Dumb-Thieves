@@ -10,16 +10,12 @@ typedef struct Process {
     int house_ID;
     int ack_count;
     int houses_visited_count;
-    
     Queue house_queue;
     Queue paser_queue;
-
-    int processes_count;
-    int parsers_count;
-    int houses_count;
 } Process;
 
-void init_process(Process* process, int rank, int total_processes);
+void init_process(Process* process, int rank);
 void update_lamport_clock(Process* process, int received_lamport_clock);
+void leave_critical_sections(Process* process);
 
 #endif
