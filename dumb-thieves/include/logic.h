@@ -8,6 +8,6 @@
 #include <stdbool.h>
 #include "queue.h"
 
-void run_logic(int num_houses, int num_pasers);
+void run_logic(int house_number, int fence_number);
 
 #endif //LOGIC_H

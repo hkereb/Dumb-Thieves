@@ -3,9 +3,8 @@
 #include "communication.h"
 #include "utils.h"
 
-void send_message(Message* msg, int dest){ 
-    increment_clock();
-    msg->lamport_clock = lamport_clock;
+void send_message(Message* msg, int dest){
+    msg->lamport_clock += 1;
     MPI_Send(msg, sizeof(Message), MPI_BYTE, dest, 0, MPI_COMM_WORLD);
     printf("[Process %d] Sent message %d to %d (local time = %d)\n", msg->rank, msg->type, dest, msg->lamport_clock);
 }
@@ -58,8 +57,8 @@ void leave_pasers(Process* process) {
         send_message(&ack_msg, req.rank);
     }
 
-    while (!is_queue_empty(&process->paser_queue)) {
-        dequeue(&process->paser_queue, &req);
+    while (!is_queue_empty(&process->fence_queue)) {
+        dequeue(&process->fence_queue, &req);
 
         Message ack_msg;
         ack_msg.type = MSG_ACK;

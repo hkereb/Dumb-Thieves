@@ -10,11 +10,10 @@ int main(int argc, char** argv) {
         MPI_Finalize();
         return 1;
     }
-    int num_houses = atoi(argv[1]);
-    int num_processes = atoi(argv[2]);
-    int num_pasers = atoi(argv[3]);
+    const int house_number = atoi(argv[1]);
+    const int fence_number = atoi(argv[2]);
 
-    run_logic(num_houses, num_pasers);
+    run_logic(house_number, fence_number);
 
     MPI_Finalize();
     return 0;

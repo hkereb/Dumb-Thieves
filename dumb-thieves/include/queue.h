@@ -3,7 +3,7 @@
 
 #include "request.h"
 
-#define QUEUE_SIZE 16
+#define QUEUE_SIZE 16 // todo should be mpi comm world size (number of all processes)
 
 typedef struct Queue {
     Request items[QUEUE_SIZE];
