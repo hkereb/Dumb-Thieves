@@ -16,7 +16,7 @@ void run_logic(int num_houses, int num_pasers) {
         process.house_ID = select_house(&process, num_houses);
         increment_clock(&process);
         
-        printf("[%d] Selected house %d\n", rank, process.house_ID);
+        printf("[%d] Selected house %d (clock: %d)\n", rank, process.house_ID, process.lamport_clock);
         
         // 2.
         Message req_house = {
@@ -52,14 +52,14 @@ void run_logic(int num_houses, int num_pasers) {
         wait_for_acks(&process, size - num_pasers, size);
         
         // 5.
-        printf("[%d] USING PASER\n", rank);
+        printf("[%d] USING PASER (clock: %d)\n", rank, process.lamport_clock);
         sleep(1);
         
         // 6.
         leave_critical_sections(&process);
         
         process.houses_visited_count++;
-        printf("[%d] Finished visit %d\n", rank, process.houses_visited_count);
+        printf("[%d] Finished visit %d (clock: %d)\n", rank, process.houses_visited_count, process.lamport_clock);
         
         // 7.
         sleep(rand() % 3 + 1);

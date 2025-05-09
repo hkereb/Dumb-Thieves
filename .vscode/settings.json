@@ -1,6 +1,9 @@
 {
     "cmake.sourceDirectory": "/home/student/Project/Dumb-Thieves/dumb-thieves",
     "files.associations": {
-        "communication.h": "c"
+        "communication.h": "c",
+        "logic.h": "c",
+        "utils.h": "c",
+        "stdbool.h": "c"
     }
 }
