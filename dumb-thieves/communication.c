@@ -27,7 +27,7 @@ void broadcast_message(Process* process, Message* msg, int num_processes) {
     }
 }
 
-void wait_for_acks(Process* process, int min_ack_num) {
+void wait_for_ack(Process* process, int min_ack_num) {
     struct timespec req = {0, 10 * 1000 * 1000}; // 10ms
     while (process->ack_count < min_ack_num) {
         nanosleep(&req, NULL);
@@ -36,7 +36,8 @@ void wait_for_acks(Process* process, int min_ack_num) {
 
 void leave_critical_sections(Process* process) {
     Request req;
-    
+
+    process->lamport_clock += 1;
     // house
     while (!is_queue_empty(&process->house_queue)) {
         dequeue(&process->house_queue, &req);
@@ -44,24 +45,24 @@ void leave_critical_sections(Process* process) {
         Message ack = {
             .type = MSG_ACK,
             .rank = process->rank,
-            .lamport_clock = ++process->lamport_clock,
+            .lamport_clock = process->lamport_clock,
             .house_ID = -1
         };
         send_message(process, &ack, req.rank);
     }
     
-    // paser
-    while (!is_queue_empty(&process->fence_queue)) {
-        dequeue(&process->fence_queue, &req);
-        
-        Message ack = {
-            .type = MSG_ACK,
-            .rank = process->rank,
-            .lamport_clock = ++process->lamport_clock,
-            .house_ID = -1
-        };
-        send_message(process, &ack, req.rank);
-    }
+    // // paser
+    // while (!is_queue_empty(&process->fence_queue)) {
+    //     dequeue(&process->fence_queue, &req);
+    //
+    //     Message ack = {
+    //         .type = MSG_ACK,
+    //         .rank = process->rank,
+    //         .lamport_clock = ++process->lamport_clock,
+    //         .house_ID = -1
+    //     };
+    //     send_message(process, &ack, req.rank);
+    // }
 }
 
 void* listener_thread(void* arg) {
@@ -72,26 +73,24 @@ void* listener_thread(void* arg) {
     while (true) {
         receive_message(process, &msg, &source);
 
-        // Aktualizacja zegara Lamporta
         process->lamport_clock = max(process->lamport_clock, msg.lamport_clock) + 1;
 
         if (msg.type == MSG_ACK) {
             process->ack_count += 1;
             printf("[P%d] (clock: %d) My ACK: %d\n", process->rank, process->lamport_clock, process->ack_count);
         }
-
         else if (msg.type == MSG_REQ_HOUSE || msg.type == MSG_REQ_FENCE) {
-            // Określamy docelową kolejkę
+            // which queue will they go to
             Queue* target_queue = (msg.type == MSG_REQ_HOUSE) ? &process->house_queue : &process->fence_queue;
 
-            // Sprawdzamy czy proces też ubiega się o ten zasób
+            // do I also want this resource?
             bool waiting = false;
             bool using = false;
-            int my_clock = process->lamport_clock;
+            int my_clock = process->last_req_clock;
 
             if (msg.type == MSG_REQ_HOUSE) {
-                waiting = process->state == WAITING_FOR_HOUSE;
-                using = process->state == ROBBING_HOUSE;
+                waiting = (process->state == WAITING_FOR_HOUSE && process->house_ID == msg.rank);
+                using = (process->state == ROBBING_HOUSE && process->house_ID == msg.rank);
             }
             else if (msg.type == MSG_REQ_FENCE) {
                 waiting = process->state == WAITING_FOR_FENCE;
@@ -108,7 +107,7 @@ void* listener_thread(void* arg) {
                 };
                 send_message(process, &ack, msg.rank);
             }
-            else {
+            else if (waiting) {
                 // i have it or i want it
                 bool i_have_priority =
                     (my_clock < msg.lamport_clock) ||
@@ -133,6 +132,14 @@ void* listener_thread(void* arg) {
                     };
                     send_message(process, &ack, msg.rank);
                 }
+            }
+            else {
+                Request req = {
+                    .rank = msg.rank,
+                    .lamport_clock = msg.lamport_clock,
+                    .house_ID = msg.house_ID
+                };
+                enqueue(target_queue, req);
             }
         }
     }

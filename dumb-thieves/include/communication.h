@@ -23,7 +23,7 @@ typedef struct Message {
 void send_message(Process* process, Message* msg, int dest);
 void receive_message(Process* process, Message* msg, int* source);
 void broadcast_message(Process* process, Message* msg, int num_processes);
-void wait_for_acks(Process* process, int min_ack_num);
+void wait_for_ack(Process* process, int min_ack_num);
 void leave_critical_sections(Process* process);
 void* listener_thread(void* arg);
 const char* msg_type_to_string(Message_type type);

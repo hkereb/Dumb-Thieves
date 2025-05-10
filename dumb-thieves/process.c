@@ -5,6 +5,7 @@ void init_process(Process* process, int rank) {
     process->rank = rank;
     process->state = RESTING;
     process->lamport_clock = 0;
+    process->last_req_clock = 0;
     process->house_ID = -1;
     process->ack_count = 0;
     process->houses_visited_count = 0;

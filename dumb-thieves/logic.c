@@ -27,6 +27,7 @@ void run_logic(const int num_houses, const int num_fences) {
 
         // 2.
         increment_clock(&process); // each process needs to receive the same value! (that's why here, not in for loop in broadcast)
+        process.last_req_clock = process.lamport_clock;
         Message req_house = {
             .type = MSG_REQ_HOUSE,
             .rank = rank,
@@ -35,11 +36,11 @@ void run_logic(const int num_houses, const int num_fences) {
         };
 
         process.ack_count = 0;
-        process.state = WAITING_FOR_HOUSE;
         broadcast_message(&process, &req_house, num_processes);
+        process.state = WAITING_FOR_HOUSE;
 
         // (N - 1) ACK
-        wait_for_acks(&process, num_processes - 1);
+        wait_for_ack(&process, num_processes - 1);
 
         // 3.
         process.state = ROBBING_HOUSE;
