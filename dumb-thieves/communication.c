@@ -38,6 +38,7 @@ void leave_critical_sections(Process* process) {
     Request req;
 
     process->lamport_clock += 1;
+
     // house
     while (!is_queue_empty(&process->house_queue)) {
         dequeue(&process->house_queue, &req);
@@ -51,18 +52,18 @@ void leave_critical_sections(Process* process) {
         send_message(process, &ack, req.rank);
     }
     
-    // // paser
-    // while (!is_queue_empty(&process->fence_queue)) {
-    //     dequeue(&process->fence_queue, &req);
-    //
-    //     Message ack = {
-    //         .type = MSG_ACK,
-    //         .rank = process->rank,
-    //         .lamport_clock = ++process->lamport_clock,
-    //         .house_ID = -1
-    //     };
-    //     send_message(process, &ack, req.rank);
-    // }
+    // paser
+    while (!is_queue_empty(&process->fence_queue)) {
+        dequeue(&process->fence_queue, &req);
+
+        Message ack = {
+            .type = MSG_ACK,
+            .rank = process->rank,
+            .lamport_clock = process->lamport_clock,
+            .house_ID = -1
+        };
+        send_message(process, &ack, req.rank);
+    }
 }
 
 void* listener_thread(void* arg) {

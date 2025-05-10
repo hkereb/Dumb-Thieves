@@ -48,26 +48,26 @@ void run_logic(const int num_houses, const int num_fences) {
         printf("[P%d] (clock: %d) ENTERING house: %d\n", rank, process.lamport_clock, process.house_ID);
         sleep(rand() % 2 + 1);
 
-        // // 4.
-        // increment_clock(&process);
-        // Message req_paser = {
-        //     .type = MSG_REQ_FENCE,
-        //     .rank = rank,
-        //     .lamport_clock = process.lamport_clock,
-        //     .house_ID = -1
-        // };
-        //
-        // process.ack_count = 0;
-        // process.ack_count = 0;process.state = WAITING_FOR_FENCE;
-        // broadcast_message(&process, &req_paser, num_processes);
-        //
-        // // (N - P) ACK
-        // wait_for_acks(&process, num_processes - num_fences);
-        //
-        // // 5.
-        // process.state = HAS_FENCE;
-        // printf("[P%d] (clock: %d) USING fence \n", rank, process.lamport_clock);
-        // sleep(1);
+        // 4.
+        increment_clock(&process);
+        process.last_req_clock = process.lamport_clock;
+        Message req_fence = {
+            .type = MSG_REQ_FENCE,
+            .rank = rank,
+            .lamport_clock = process.lamport_clock,
+            .house_ID = -1
+        };
+
+        process.ack_count = 0;
+        broadcast_message(&process, &req_fence, num_processes);
+        process.state = WAITING_FOR_FENCE;
+
+        // (N - P) ACK
+        wait_for_ack(&process, num_processes - num_fences);
+
+        // 5.
+        process.state = HAS_FENCE;
+        printf("[P%d] (clock: %d) USING fence \n", rank, process.lamport_clock);
         
         // 6.
         leave_critical_sections(&process);
