@@ -1,28 +1,33 @@
-#include <mpi.h>
-#include <stdio.h>
 #include "logic.h"
+
+#include <pthread.h>
+
 #include "communication.h"
 #include "utils.h"
 
-void run_logic(int num_houses, int num_pasers) {
-    int rank, size;
+void run_logic(const int num_houses, const int num_fences) {
+    int rank, num_processes;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
 
-    Process process = {
-        .rank = rank,
-        .state = 0,
-        .lamport_clock = 0,
-        .ack_count = 0,
-        .houses_visited_count = 0
-    };
-    init_queue(&process.house_queue);
-    init_queue(&process.paser_queue);
+    Process process;
+    init_process(&process, rank);
 
-    while(1) {
+    pthread_t thread;
+    pthread_create(&thread, NULL, listener_thread, &process);
+
+    srand(time(NULL) + rank);
+
+    while (true) {
+        // 1.
         process.house_ID = select_house(&process, num_houses);
-        increment_clock(&process.lamport_clock);
+        increment_clock(&process);
 
+        printf("[P%d] (clock: %d) SELECTED house: %d\n", rank, process.lamport_clock, process.house_ID);
+
+        // 2.
+        increment_clock(&process); // each process needs to receive the same value! (that's why here, not in for loop in broadcast)
+        process.last_req_clock = process.lamport_clock;
         Message req_house = {
             .type = MSG_REQ_HOUSE,
             .rank = rank,
@@ -30,36 +35,50 @@ void run_logic(int num_houses, int num_pasers) {
             .house_ID = process.house_ID
         };
 
-        broadcast_message(&req_house, size);
         process.ack_count = 0;
+        broadcast_message(&process, &req_house, num_processes);
+        process.state = WAITING_FOR_HOUSE;
 
-        wait_for_acks(&process, size - 1); // house acks
+        // (N - 1) ACK
+        wait_for_ack(&process, num_processes - 1);
 
-        printf("Process %d entering house %d\n", rank, process.house_ID);
+        // 3.
+        process.state = ROBBING_HOUSE;
+        increment_clock(&process);
+        printf("[P%d] (clock: %d) ENTERING house: %d\n", rank, process.lamport_clock, process.house_ID);
         sleep(rand() % 2 + 1);
 
-        increment_clock(&process.lamport_clock);
-
-        Message req_paser = {
-            .type = MSG_REQ_PASER,
+        // 4.
+        increment_clock(&process);
+        process.last_req_clock = process.lamport_clock;
+        Message req_fence = {
+            .type = MSG_REQ_FENCE,
             .rank = rank,
             .lamport_clock = process.lamport_clock,
             .house_ID = -1
         };
 
-        broadcast_message(&req_paser, size);
         process.ack_count = 0;
+        broadcast_message(&process, &req_fence, num_processes);
+        process.state = WAITING_FOR_FENCE;
 
-        wait_for_acks(&process, size - num_pasers);
+        // (N - P) ACK
+        wait_for_ack(&process, num_processes - num_fences);
 
-        printf("Process %d accessing paser\n", rank);
-
-        leave_pasers(&process);
-
+        // 5.
+        process.state = HAS_FENCE;
+        printf("[P%d] (clock: %d) USING fence \n", rank, process.lamport_clock);
+        
+        // 6.
+        leave_critical_sections(&process);
         process.houses_visited_count++;
-
-        sleep(rand() % 5 + 1);
+        printf("[P%d] (clock: %d) FINISHED job %d\n", rank, process.lamport_clock, process.houses_visited_count);
+        
+        // 7.
+        process.state = RESTING;
+        sleep(rand() % 3 + 1);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0) printf("All processes completed their work\n");
 }

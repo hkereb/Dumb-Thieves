@@ -5,9 +5,12 @@
 #ifndef LOGIC_H
 #define LOGIC_H
 
-#include <stdbool.h>
+
+#include <stdlib.h>
+#include <time.h>
+#include <unistd.h>
 #include "queue.h"
 
-void run_logic(int num_houses, int num_pasers);
+void run_logic(int num_houses, int num_fences);
 
 #endif //LOGIC_H

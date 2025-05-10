@@ -1,73 +1,165 @@
-#include <mpi.h>
-#include <stdio.h>
 #include "communication.h"
 #include "utils.h"
+#include <pthread.h>
+#include <unistd.h>
+#include <time.h>
 
-void send_message(Message* msg, int dest){ 
-    increment_clock();
-    msg->lamport_clock = lamport_clock;
+void send_message(Process* process, Message* msg, int dest) {
     MPI_Send(msg, sizeof(Message), MPI_BYTE, dest, 0, MPI_COMM_WORLD);
-    printf("[Process %d] Sent message %d to %d (local time = %d)\n", msg->rank, msg->type, dest, msg->lamport_clock);
+    printf("[P%d] (clock: %d) SENT %s to P%d, while %s\n",
+           process->rank, msg->lamport_clock, msg_type_to_string(msg->type), dest, state_to_string(process->state));
 }
 
-void receive_message(Message* msg, int* source) {
+void receive_message(Process* process, Message* msg, int* source) {
     MPI_Status status;
-    MPI_Recv(msg, sizeof(Message), MPI_BYTE, 0, 0, MPI_COMM_WORLD, &status);
-    update_clock(msg->lamport_clock);
-    printf("[Process %d] Received message %d from %d (local time = %d)\n", msg->rank, msg->type, *source, lamport_clock);
+    MPI_Recv(msg, sizeof(Message), MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+    *source = status.MPI_SOURCE;
+    process->lamport_clock = max(process->lamport_clock, msg->lamport_clock) + 1;
+    printf("[P%d] (clock: %d) RECEIVED %s from P%d, while %s\n",
+           process->rank, process->lamport_clock, msg_type_to_string(msg->type), *source, state_to_string(process->state));
 }
 
-void broadcast_message(Message* msg, int processes_count) {
-    for (int i = 0; i < processes_count; i++) {
-        if (i != msg->rank){
-            send_message(msg, i);
+void broadcast_message(Process* process, Message* msg, int num_processes) {
+    for (int i = 0; i < num_processes; i++) {
+        if (i != process->rank) {
+            send_message(process, msg, i);
         }
     }
 }
 
-void wait_for_acks(Process* process, int min_ack_num) {
-    Message msg; 
-    int source;
-
+void wait_for_ack(Process* process, int min_ack_num) {
+    struct timespec req = {0, 10 * 1000 * 1000}; // 10ms
     while (process->ack_count < min_ack_num) {
-        receive_message(&msg, &source);
-
-        if (msg.lamport_clock > process->lamport_clock) {
-            process->lamport_clock = msg.lamport_clock;
-        }
-        process->lamport_clock++;
-
-        if (msg.type == MSG_ACK) {
-            process->ack_count++;
-        }
+        nanosleep(&req, NULL);
     }
 }
 
-void leave_pasers(Process* process) {
+void leave_critical_sections(Process* process) {
     Request req;
-    
+
+    process->lamport_clock += 1;
+
+    // house
     while (!is_queue_empty(&process->house_queue)) {
         dequeue(&process->house_queue, &req);
-
-        Message ack_msg;
-        ack_msg.type = MSG_ACK;
-        ack_msg.rank = process->rank;
-        ack_msg.lamport_clock = ++process->lamport_clock;
-        ack_msg.house_ID = req.house_ID;
-
-        send_message(&ack_msg, req.rank);
+        
+        Message ack = {
+            .type = MSG_ACK,
+            .rank = process->rank,
+            .lamport_clock = process->lamport_clock,
+            .house_ID = -1
+        };
+        send_message(process, &ack, req.rank);
     }
+    
+    // paser
+    while (!is_queue_empty(&process->fence_queue)) {
+        dequeue(&process->fence_queue, &req);
 
-    while (!is_queue_empty(&process->paser_queue)) {
-        dequeue(&process->paser_queue, &req);
-
-        Message ack_msg;
-        ack_msg.type = MSG_ACK;
-        ack_msg.rank = process->rank;
-        ack_msg.lamport_clock = ++process->lamport_clock;
-        ack_msg.house_ID = req.house_ID;
-
-        send_message(&ack_msg, req.rank);
+        Message ack = {
+            .type = MSG_ACK,
+            .rank = process->rank,
+            .lamport_clock = process->lamport_clock,
+            .house_ID = -1
+        };
+        send_message(process, &ack, req.rank);
     }
 }
 
+void* listener_thread(void* arg) {
+    Process* process = arg;
+    Message msg;
+    int source;
+
+    while (true) {
+        receive_message(process, &msg, &source);
+
+        if (msg.type == MSG_ACK) {
+            process->ack_count += 1;
+            printf("[P%d] (clock: %d) My ACK: %d\n", process->rank, process->lamport_clock, process->ack_count);
+        }
+        else if (msg.type == MSG_REQ_HOUSE || msg.type == MSG_REQ_FENCE) {
+            // which queue will they go to
+            Queue* target_queue = (msg.type == MSG_REQ_HOUSE) ? &process->house_queue : &process->fence_queue;
+
+            // do I also want this resource?
+            bool waiting = false;
+            bool using = false;
+            int my_clock = process->last_req_clock;
+
+            if (msg.type == MSG_REQ_HOUSE) {
+                waiting = (process->state == WAITING_FOR_HOUSE && process->house_ID == msg.house_ID);
+                using = (process->state == ROBBING_HOUSE && process->house_ID == msg.house_ID);
+            }
+            else if (msg.type == MSG_REQ_FENCE) {
+                waiting = process->state == WAITING_FOR_FENCE;
+                using = process->state == HAS_FENCE;
+            }
+
+            if (!waiting && !using) {
+                // i dont have it, i dont want it
+                process->lamport_clock += 1;
+                Message ack = {
+                    .type = MSG_ACK,
+                    .rank = process->rank,
+                    .lamport_clock = process->lamport_clock
+                };
+                send_message(process, &ack, msg.rank);
+            }
+            else if (waiting) {
+                // i have it or i want it
+                bool i_have_priority =
+                    (my_clock < msg.lamport_clock) ||
+                    (my_clock == msg.lamport_clock && process->rank < msg.rank);
+
+                if (i_have_priority) {
+                    // im better, you have to wait
+                    Request req = {
+                        .rank = msg.rank,
+                        .lamport_clock = msg.lamport_clock,
+                        .house_ID = msg.house_ID
+                    };
+                    enqueue(target_queue, req);
+                }
+                else {
+                    // you're better, go first
+                    process->lamport_clock += 1;
+                    Message ack = {
+                        .type = MSG_ACK,
+                        .rank = process->rank,
+                        .lamport_clock = process->lamport_clock
+                    };
+                    send_message(process, &ack, msg.rank);
+                }
+            }
+            else {
+                Request req = {
+                    .rank = msg.rank,
+                    .lamport_clock = msg.lamport_clock,
+                    .house_ID = msg.house_ID
+                };
+                enqueue(target_queue, req);
+            }
+        }
+    }
+}
+
+
+const char* msg_type_to_string(Message_type type) {
+    switch (type) {
+        case MSG_ACK: return "MSG_ACK";
+        case MSG_REQ_HOUSE: return "MSG_REQ_HOUSE";
+        case MSG_REQ_FENCE: return "MSG_REQ_FENCE";
+        default: return "UNKNOWN";
+    }
+}
+const char* state_to_string(ProcessState state) {
+    switch (state) {
+        case RESTING: return "RESTING";
+        case WAITING_FOR_HOUSE: return "WAITING_FOR_HOUSE";
+        case ROBBING_HOUSE: return "ROBBING_HOUSE";
+        case WAITING_FOR_FENCE: return "WAITING_FOR_FENCE";
+        case HAS_FENCE: return "HAS_FENCE";
+        default: return "UNKNOWN";
+    }
+}
