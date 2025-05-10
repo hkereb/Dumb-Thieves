@@ -6,17 +6,17 @@
 
 void send_message(Process* process, Message* msg, int dest) {
     MPI_Send(msg, sizeof(Message), MPI_BYTE, dest, 0, MPI_COMM_WORLD);
-    printf("[P%d] (clock: %d) SENT %s to P%d\n",
-           process->rank, msg->lamport_clock, msg_type_to_string(msg->type), dest);
+    printf("[P%d] (clock: %d) SENT %s to P%d, while %s\n",
+           process->rank, msg->lamport_clock, msg_type_to_string(msg->type), dest, state_to_string(process->state));
 }
 
 void receive_message(Process* process, Message* msg, int* source) {
     MPI_Status status;
     MPI_Recv(msg, sizeof(Message), MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     *source = status.MPI_SOURCE;
-    // process->lamport_clock = max(process->lamport_clock, msg->lamport_clock) + 1;
-    printf("[P%d] (clock: %d) RECEIVED %s from P%d\n",
-           process->rank, process->lamport_clock, msg_type_to_string(msg->type), *source);
+    process->lamport_clock = max(process->lamport_clock, msg->lamport_clock) + 1;
+    printf("[P%d] (clock: %d) RECEIVED %s from P%d, while %s\n",
+           process->rank, process->lamport_clock, msg_type_to_string(msg->type), *source, state_to_string(process->state));
 }
 
 void broadcast_message(Process* process, Message* msg, int num_processes) {
@@ -73,8 +73,6 @@ void* listener_thread(void* arg) {
     while (true) {
         receive_message(process, &msg, &source);
 
-        process->lamport_clock = max(process->lamport_clock, msg.lamport_clock) + 1;
-
         if (msg.type == MSG_ACK) {
             process->ack_count += 1;
             printf("[P%d] (clock: %d) My ACK: %d\n", process->rank, process->lamport_clock, process->ack_count);
@@ -89,8 +87,8 @@ void* listener_thread(void* arg) {
             int my_clock = process->last_req_clock;
 
             if (msg.type == MSG_REQ_HOUSE) {
-                waiting = (process->state == WAITING_FOR_HOUSE && process->house_ID == msg.rank);
-                using = (process->state == ROBBING_HOUSE && process->house_ID == msg.rank);
+                waiting = (process->state == WAITING_FOR_HOUSE && process->house_ID == msg.house_ID);
+                using = (process->state == ROBBING_HOUSE && process->house_ID == msg.house_ID);
             }
             else if (msg.type == MSG_REQ_FENCE) {
                 waiting = process->state == WAITING_FOR_FENCE;
@@ -151,6 +149,16 @@ const char* msg_type_to_string(Message_type type) {
         case MSG_ACK: return "MSG_ACK";
         case MSG_REQ_HOUSE: return "MSG_REQ_HOUSE";
         case MSG_REQ_FENCE: return "MSG_REQ_FENCE";
+        default: return "UNKNOWN";
+    }
+}
+const char* state_to_string(ProcessState state) {
+    switch (state) {
+        case RESTING: return "RESTING";
+        case WAITING_FOR_HOUSE: return "WAITING_FOR_HOUSE";
+        case ROBBING_HOUSE: return "ROBBING_HOUSE";
+        case WAITING_FOR_FENCE: return "WAITING_FOR_FENCE";
+        case HAS_FENCE: return "HAS_FENCE";
         default: return "UNKNOWN";
     }
 }

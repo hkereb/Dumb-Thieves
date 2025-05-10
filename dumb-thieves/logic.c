@@ -44,6 +44,7 @@ void run_logic(const int num_houses, const int num_fences) {
 
         // 3.
         process.state = ROBBING_HOUSE;
+        increment_clock(&process);
         printf("[P%d] (clock: %d) ENTERING house: %d\n", rank, process.lamport_clock, process.house_ID);
         sleep(rand() % 2 + 1);
 
