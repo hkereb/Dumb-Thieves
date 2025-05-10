@@ -15,6 +15,7 @@ void receive_message(Process* process, Message* msg, int* source) {
     update_clock(process, msg->lamport_clock);
     printf("[P%d] (clock: %d) RECEIVED %s from P%d\n",
            process->rank, process->lamport_clock, msg_type_to_string(msg->type), *source);
+    fflush(stdout);
 }
 
 void broadcast_message(Process* process, Message* msg, int num_processes) {
@@ -72,6 +73,7 @@ void* listener_thread(void* arg) {
         if (msg.type == MSG_ACK) {
             __sync_fetch_and_add(&process->ack_count, 1);
             printf("[P%d] (clock: %d) My ACK: %d\n", process->rank, process->lamport_clock, process->ack_count);
+            fflush(stdout);
         }
         else if (msg.type == MSG_REQ_HOUSE || msg.type == MSG_REQ_FENCE) {
             Request req = {

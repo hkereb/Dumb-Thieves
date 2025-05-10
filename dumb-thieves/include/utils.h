@@ -11,6 +11,16 @@
 #include <mpi.h>
 #include <stdio.h>
 
+#ifdef _WIN32
+#include <direct.h>
+#include <io.h>
+#define mkdir(dir, mode) _mkdir(dir)
+#define access _access
+#else
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif
+
 #include "process.h"
 
 void increment_clock(Process* process);

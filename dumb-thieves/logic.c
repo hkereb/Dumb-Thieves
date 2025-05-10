@@ -24,6 +24,7 @@ void run_logic(const int num_houses, const int num_fences) {
         increment_clock(&process);
 
         printf("[P%d] (clock: %d) SELECTED house: %d\n", rank, process.lamport_clock, process.house_ID);
+        fflush(stdout);
 
         // 2.
         increment_clock(&process); // each process needs to receive the same value! (that's why here, not in for loop in broadcast)
@@ -42,6 +43,7 @@ void run_logic(const int num_houses, const int num_fences) {
 
         // 3.
         printf("[P%d] (clock: %d) ENTERING house: %d\n", rank, process.lamport_clock, process.house_ID);
+        fflush(stdout);
         sleep(rand() % 2 + 1);
 
         // 4.
@@ -61,6 +63,7 @@ void run_logic(const int num_houses, const int num_fences) {
         
         // 5.
         printf("[P%d] (clock: %d) USING fence \n", rank, process.lamport_clock);
+        fflush(stdout);
         sleep(1);
         
         // 6.
@@ -68,11 +71,12 @@ void run_logic(const int num_houses, const int num_fences) {
         
         process.houses_visited_count++;
         printf("[P%d] (clock: %d) FINISHED job %d\n", rank, process.lamport_clock, process.houses_visited_count);
+        fflush(stdout);
         
         // 7.
         sleep(rand() % 3 + 1);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    if (rank == 0) printf("All processes completed their work\n");
+    if (rank == 0) printf("All processes completed their work\n"); fflush(stdout);
 }
