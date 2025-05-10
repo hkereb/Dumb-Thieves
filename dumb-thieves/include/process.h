@@ -5,14 +5,23 @@
 
 #include "queue.h"
 
+typedef enum {
+    RESTING,
+    WAITING_FOR_HOUSE,
+    ROBBING_HOUSE,
+    WAITING_FOR_FENCE,
+    HAS_FENCE
+} ProcessState;
+
 typedef struct Process {
     int rank;
+    ProcessState state;
     int lamport_clock;
     int house_ID;
     int ack_count;
     int houses_visited_count;
     Queue house_queue;
-    Queue paser_queue;
+    Queue fence_queue;
 
     FILE* log_file;
 } Process;
