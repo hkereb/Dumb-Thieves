@@ -20,3 +20,4 @@ target_link_libraries(dumb_thieves
         MPI::MPI_C
         Threads::Threads
 )
+

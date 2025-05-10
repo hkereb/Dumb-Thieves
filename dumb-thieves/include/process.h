@@ -1,6 +1,8 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
+#include <stdio.h>
+
 #include "queue.h"
 
 typedef struct Process {
@@ -11,6 +13,8 @@ typedef struct Process {
     int houses_visited_count;
     Queue house_queue;
     Queue paser_queue;
+
+    FILE* log_file;
 } Process;
 
 void init_process(Process* process, int rank);

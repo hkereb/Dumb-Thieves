@@ -23,7 +23,7 @@ void run_logic(const int num_houses, const int num_fences) {
         process.house_ID = select_house(&process, num_houses);
         increment_clock(&process);
 
-        printf("[P%d] SELECTED house: %d (clock: %d)\n", rank, process.house_ID, process.lamport_clock);
+        printf("[P%d] (clock: %d) SELECTED house: %d\n", rank, process.lamport_clock, process.house_ID);
 
         // 2.
         increment_clock(&process); // each process needs to receive the same value! (that's why here, not in for loop in broadcast)
@@ -38,10 +38,10 @@ void run_logic(const int num_houses, const int num_fences) {
         broadcast_message(&process, &req_house, num_processes);
 
         // (N - 1) ACK
-        wait_for_acks(&process, num_processes - 1, num_processes);
+        wait_for_acks(&process, num_processes - 1);
 
         // 3.
-        printf("[P%d] ENTERING house: %d (clock: %d)\n", rank, process.house_ID, process.lamport_clock);
+        printf("[P%d] (clock: %d) ENTERING house: %d\n", rank, process.lamport_clock, process.house_ID);
         sleep(rand() % 2 + 1);
 
         // 4.
@@ -57,22 +57,22 @@ void run_logic(const int num_houses, const int num_fences) {
         broadcast_message(&process, &req_paser, num_processes);
 
         // (N - P) ACK
-        wait_for_acks(&process, num_processes - num_fences, num_processes);
+        wait_for_acks(&process, num_processes - num_fences);
         
         // 5.
-        printf("[P%d] USING fence (clock: %d)\n", rank, process.lamport_clock);
+        printf("[P%d] (clock: %d) USING fence \n", rank, process.lamport_clock);
         sleep(1);
         
         // 6.
         leave_critical_sections(&process);
         
         process.houses_visited_count++;
-        printf("[P%d] FINISHED job %d (clock: %d)\n", rank, process.houses_visited_count, process.lamport_clock);
+        printf("[P%d] (clock: %d) FINISHED job %d\n", rank, process.lamport_clock, process.houses_visited_count);
         
         // 7.
         sleep(rand() % 3 + 1);
     }
-    
+
     MPI_Barrier(MPI_COMM_WORLD);
     if (rank == 0) printf("All processes completed their work\n");
 }
