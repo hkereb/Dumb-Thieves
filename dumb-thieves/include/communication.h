@@ -9,7 +9,7 @@
 
 typedef enum Message_type {
     MSG_REQ_HOUSE,
-    MSG_REQ_PASER,
+    MSG_REQ_FENCE,
     MSG_ACK
 } Message_type;
 
@@ -22,7 +22,7 @@ typedef struct Message {
 
 void send_message(Process* process, Message* msg, int dest);
 void receive_message(Process* process, Message* msg, int* source);
-void broadcast_message(Process* process, Message* msg, int processes_count);
+void broadcast_message(Process* process, Message* msg, int num_processes);
 void wait_for_acks(Process* process, int min_ack_num, int processes_count);
 void leave_critical_sections(Process* process);
 

@@ -12,6 +12,11 @@ void update_clock(Process* process, int received_time) {
 }
 
 int select_house(Process* process, int num_houses) {
-    int house_ID = ((process->rank * (process->houses_visited_count + 1)) % num_houses + 1);
-    return house_ID;
+    return  ((process->rank * (process->houses_visited_count + 1)) % num_houses + 1);
+}
+
+int max(int a, int b) {
+    if (a > b) return a;
+
+    return b;
 }

@@ -5,7 +5,6 @@
 
 typedef struct Process {
     int rank;
-    int state;
     int lamport_clock;
     int house_ID;
     int ack_count;

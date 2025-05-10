@@ -8,16 +8,16 @@ int main(int argc, char** argv) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         if (rank == 0) {
-            fprintf(stderr, "Usage: %s <num_houses> <num_pasers>\n", argv[0]);
+            fprintf(stderr, "Usage: %s <num_houses> <num_fences>\n", argv[0]);
         }
         MPI_Finalize();
         return 1;
     }
     
     int num_houses = atoi(argv[1]);
-    int num_pasers = atoi(argv[2]);
-    
-    run_logic(num_houses, num_pasers);
+    int num_fences = atoi(argv[2]);
+
+    run_logic(num_houses, num_fences);
     
     MPI_Finalize();
     return 0;

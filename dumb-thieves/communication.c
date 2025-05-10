@@ -2,10 +2,8 @@
 #include "utils.h"
 
 void send_message(Process* process, Message* msg, int dest) {
-    increment_clock(process);
-    msg->lamport_clock = process->lamport_clock;
     MPI_Send(msg, sizeof(Message), MPI_BYTE, dest, 0, MPI_COMM_WORLD);
-    printf("[%d] Sent %d to %d (clock: %d)\n", 
+    printf("[P%d] Sent %d to %d (clock: %d)\n",
            process->rank, msg->type, dest, msg->lamport_clock);
 }
 
@@ -14,12 +12,12 @@ void receive_message(Process* process, Message* msg, int* source) {
     MPI_Recv(msg, sizeof(Message), MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     *source = status.MPI_SOURCE;
     update_clock(process, msg->lamport_clock);
-    printf("[%d] Received %d from %d (clock: %d)\n", 
+    printf("[P%d] Received %d from %d (clock: %d)\n",
            process->rank, msg->type, *source, process->lamport_clock);
 }
 
-void broadcast_message(Process* process, Message* msg, int processes_count) {
-    for (int i = 0; i < processes_count; i++) {
+void broadcast_message(Process* process, Message* msg, int num_processes) {
+    for (int i = 0; i < num_processes; i++) {
         if (i != process->rank) {
             send_message(process, msg, i);
         }
@@ -39,7 +37,7 @@ void wait_for_acks(Process* process, int min_ack_num, int processes_count) {
             process->ack_count++;
             printf("[%d] ACK: (%d / %d)\n", rank, process->ack_count, min_ack_num);
         }
-        else if (msg.type == MSG_REQ_HOUSE || msg.type == MSG_REQ_PASER) {
+        else if (msg.type == MSG_REQ_HOUSE || msg.type == MSG_REQ_FENCE) {
             Request req = {
                 .rank = msg.rank,
                 .lamport_clock = msg.lamport_clock,
