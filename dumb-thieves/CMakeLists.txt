@@ -15,4 +15,8 @@ add_executable(dumb_thieves
 target_include_directories(dumb_thieves PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 find_package(MPI REQUIRED)
-target_link_libraries(dumb_thieves MPI::MPI_C)
+find_package(Threads REQUIRED)
+target_link_libraries(dumb_thieves
+        MPI::MPI_C
+        Threads::Threads
+)

@@ -1,5 +1,6 @@
 #include "communication.h"
 #include "utils.h"
+#include <pthread.h>
 
 void send_message(Process* process, Message* msg, int dest) {
     MPI_Send(msg, sizeof(Message), MPI_BYTE, dest, 0, MPI_COMM_WORLD);
@@ -24,45 +25,11 @@ void broadcast_message(Process* process, Message* msg, int num_processes) {
     }
 }
 
-void wait_for_acks(Process* process, int min_ack_num, int processes_count) {
-    Message msg;
-    int source;
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    
+void wait_for_acks(Process* process, int min_ack_num) {
     while (process->ack_count < min_ack_num) {
-        receive_message(process, &msg, &source);
-        
-        if (msg.type == MSG_ACK) {
-            process->ack_count++;
-            printf("[%d] ACK: (%d / %d)\n", rank, process->ack_count, min_ack_num);
-        }
-        else if (msg.type == MSG_REQ_HOUSE || msg.type == MSG_REQ_FENCE) {
-            Request req = {
-                .rank = msg.rank,
-                .lamport_clock = msg.lamport_clock,
-                .house_ID = msg.house_ID
-            };
-            
-            Queue* target_queue;
-            if (msg.type == MSG_REQ_HOUSE) {
-                target_queue = &process->house_queue;
-            } else {
-                target_queue = &process->paser_queue;
-            }
-            
-            enqueue(target_queue, req);
-            
-            Message ack = {
-                .type = MSG_ACK,
-                .rank = process->rank,
-                .lamport_clock = ++process->lamport_clock
-            };
-            send_message(process, &ack, msg.rank);
-        }
+        usleep(10000); // 10ms
     }
 }
-
 
 void leave_critical_sections(Process* process) {
     Request req;
@@ -91,5 +58,37 @@ void leave_critical_sections(Process* process) {
             .house_ID = -1
         };
         send_message(process, &ack, req.rank);
+    }
+}
+
+void* listener_thread(void* arg) {
+    Process* process = arg;
+    Message msg;
+    int source;
+
+    while (true) {
+        receive_message(process, &msg, &source);
+
+        if (msg.type == MSG_ACK) {
+            __sync_fetch_and_add(&process->ack_count, 1);
+            printf("[P%d] ACK: (%d)\n", process->rank, process->ack_count);
+        }
+        else if (msg.type == MSG_REQ_HOUSE || msg.type == MSG_REQ_FENCE) {
+            Request req = {
+                .rank = msg.rank,
+                .lamport_clock = msg.lamport_clock,
+                .house_ID = msg.house_ID
+            };
+
+            Queue* target_queue = (msg.type == MSG_REQ_HOUSE) ? &process->house_queue : &process->paser_queue;
+            enqueue(target_queue, req);
+
+            Message ack = {
+                .type = MSG_ACK,
+                .rank = process->rank,
+                .lamport_clock = ++process->lamport_clock
+            };
+            send_message(process, &ack, msg.rank);
+        }
     }
 }

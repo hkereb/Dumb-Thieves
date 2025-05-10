@@ -1,4 +1,7 @@
 #include "logic.h"
+
+#include <pthread.h>
+
 #include "communication.h"
 #include "utils.h"
 
@@ -9,6 +12,9 @@ void run_logic(const int num_houses, const int num_fences) {
 
     Process process;
     init_process(&process, rank);
+
+    pthread_t thread;
+    pthread_create(&thread, NULL, listener_thread, &process);
 
     srand(time(NULL) + rank);
 
