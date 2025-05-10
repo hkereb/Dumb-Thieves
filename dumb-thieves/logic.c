@@ -1,5 +1,6 @@
 #include "logic.h"
 
+#include <mpi.h>
 #include <pthread.h>
 
 #include "communication.h"
@@ -81,4 +82,36 @@ void run_logic(const int num_houses, const int num_fences) {
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (rank == 0) printf("All processes completed their work\n");
+}
+
+void leave_critical_sections(Process* process) {
+    Request req;
+
+    process->lamport_clock += 1;
+
+    // house
+    while (!is_queue_empty(&process->house_queue)) {
+        dequeue(&process->house_queue, &req);
+
+        Message ack = {
+            .type = MSG_ACK,
+            .rank = process->rank,
+            .lamport_clock = process->lamport_clock,
+            .house_ID = -1
+        };
+        send_message(process, &ack, req.rank);
+    }
+
+    // fence
+    while (!is_queue_empty(&process->fence_queue)) {
+        dequeue(&process->fence_queue, &req);
+
+        Message ack = {
+            .type = MSG_ACK,
+            .rank = process->rank,
+            .lamport_clock = process->lamport_clock,
+            .house_ID = -1
+        };
+        send_message(process, &ack, req.rank);
+    }
 }

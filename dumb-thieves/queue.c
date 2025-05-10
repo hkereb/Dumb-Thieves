@@ -5,7 +5,6 @@ void init_queue(Queue* q) {
     q->size = 0;
 }
 
-
 int enqueue(Queue* q, Request r) {
     if (q->size >= QUEUE_SIZE) {
         return -1;
