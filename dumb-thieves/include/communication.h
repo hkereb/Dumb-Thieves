@@ -21,7 +21,7 @@ typedef struct Message {
 } Message;
 
 void send_message(Process* process, Message* msg, int dest);
-void receive_message(Process* process, Message* msg, int* source);
+void receive_message(Process* process, Message* msg, int* source, int blocking);
 void broadcast_message(Process* process, Message* msg, int processes_count);
 void wait_for_acks(Process* process, int min_ack_num, int processes_count);
 void leave_critical_sections(Process* process);

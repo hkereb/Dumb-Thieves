@@ -17,6 +17,7 @@ void run_logic(int num_houses, int num_pasers) {
         increment_clock(&process);
         
         printf("[%d] Selected house %d (clock: %d)\n", rank, process.house_ID, process.lamport_clock);
+        fflush(stdout);
         
         // 2.
         Message req_house = {
@@ -34,6 +35,7 @@ void run_logic(int num_houses, int num_pasers) {
         
         // 3.
         printf("[%d] ENTERING house %d\n", rank, process.house_ID);
+        fflush(stdout);
         sleep(rand() % 2 + 1); 
         
         // 4.
@@ -53,6 +55,7 @@ void run_logic(int num_houses, int num_pasers) {
         
         // 5.
         printf("[%d] USING PASER (clock: %d)\n", rank, process.lamport_clock);
+        fflush(stdout);
         sleep(1);
         
         // 6.
@@ -60,11 +63,14 @@ void run_logic(int num_houses, int num_pasers) {
         
         process.houses_visited_count++;
         printf("[%d] Finished visit %d (clock: %d)\n", rank, process.houses_visited_count, process.lamport_clock);
-        
+        fflush(stdout);
         // 7.
         sleep(rand() % 3 + 1);
     }
     
     MPI_Barrier(MPI_COMM_WORLD);
-    if (rank == 0) printf("All processes completed their work\n");
+    if (rank == 0) {
+        printf("All processes completed their work\n");
+        fflush(stdout);
+    }
 }
