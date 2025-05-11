@@ -1,9 +1,11 @@
 #include "logic.h"
 
+#include <mpi.h>
 #include <pthread.h>
 
 #include "communication.h"
 #include "utils.h"
+#include "process.h"
 
 void run_logic(const int num_houses, const int num_fences) {
     int rank, num_processes;
@@ -21,12 +23,12 @@ void run_logic(const int num_houses, const int num_fences) {
     while (true) {
         // 1.
         process.house_ID = select_house(&process, num_houses);
-        increment_clock(&process);
+        increment_clock_by_one(&process);
 
         printf("[P%d] (clock: %d) SELECTED house: %d\n", rank, process.lamport_clock, process.house_ID);
 
         // 2.
-        increment_clock(&process); // each process needs to receive the same value! (that's why here, not in for loop in broadcast)
+        increment_clock_by_one(&process); // each process needs to receive the same value! (that's why here, not in for loop in broadcast)
         process.last_req_clock = process.lamport_clock;
         Message req_house = {
             .type = MSG_REQ_HOUSE,
@@ -44,12 +46,12 @@ void run_logic(const int num_houses, const int num_fences) {
 
         // 3.
         process.state = ROBBING_HOUSE;
-        increment_clock(&process);
+        increment_clock_by_one(&process);
         printf("[P%d] (clock: %d) ENTERING house: %d\n", rank, process.lamport_clock, process.house_ID);
         sleep(rand() % 2 + 1);
 
         // 4.
-        increment_clock(&process);
+        increment_clock_by_one(&process);
         process.last_req_clock = process.lamport_clock;
         Message req_fence = {
             .type = MSG_REQ_FENCE,
@@ -81,4 +83,36 @@ void run_logic(const int num_houses, const int num_fences) {
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (rank == 0) printf("All processes completed their work\n");
+}
+
+void leave_critical_sections(Process* process) {
+    Request req;
+
+    increment_clock_by_one(process);
+
+    // house queue
+    while (!is_queue_empty(&process->house_queue)) {
+        dequeue(&process->house_queue, &req);
+
+        Message ack = {
+            .type = MSG_ACK,
+            .rank = process->rank,
+            .lamport_clock = process->lamport_clock,
+            .house_ID = -1
+        };
+        send_message(process, &ack, req.rank);
+    }
+
+    // fence queue
+    while (!is_queue_empty(&process->fence_queue)) {
+        dequeue(&process->fence_queue, &req);
+
+        Message ack = {
+            .type = MSG_ACK,
+            .rank = process->rank,
+            .lamport_clock = process->lamport_clock,
+            .house_ID = -1
+        };
+        send_message(process, &ack, req.rank);
+    }
 }
