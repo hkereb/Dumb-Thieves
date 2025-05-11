@@ -27,5 +27,5 @@ mkdir build
 cd build
 cmake ..
 make
-mpirun --hostfile ../hosts -np <number of processes> ./dumb_thieves
+mpirun --hostfile ../hosts -np <number_of_processes> ./dumb_thieves <number_of_houses> <number_of_fences>
 ```
