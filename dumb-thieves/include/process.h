@@ -29,7 +29,7 @@ typedef struct Process {
 
 void init_process(Process* process, int rank);
 void update_clock_upon_recv(Process* process, int received_lamport_clock);
-void leave_critical_sections(Process* process);
+void leave_critical_sections(Process* process, FILE* fp);
 void increment_clock_by_one(Process* process);
 
 #endif

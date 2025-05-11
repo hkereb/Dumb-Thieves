@@ -30,3 +30,21 @@ const char* state_to_string(ProcessState state) {
     }
 }
 
+void custom_printf(FILE* out, const char* fmt, ...) {
+    va_list args;
+    va_list args_copy;
+    va_start(args, fmt);
+    va_copy(args_copy, args);
+
+    // terminal
+    vprintf(fmt, args);
+
+    // log file
+    vfprintf(out, fmt, args_copy);
+    
+    va_end(args_copy);
+    va_end(args);
+
+    fflush(stdout);
+    fflush(out);
+}

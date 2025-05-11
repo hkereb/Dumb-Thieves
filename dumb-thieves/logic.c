@@ -7,7 +7,7 @@
 #include "utils.h"
 #include "process.h"
 
-void run_logic(const int num_houses, const int num_fences) {
+void run_logic(const int num_houses, const int num_fences, FILE* fp) {
     int rank, num_processes;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
@@ -15,8 +15,12 @@ void run_logic(const int num_houses, const int num_fences) {
     Process process;
     init_process(&process, rank);
 
+    ThreadArgs thread_args;
+    thread_args.process = &process;
+    thread_args.fp = fp;
+
     pthread_t thread;
-    pthread_create(&thread, NULL, listener_thread, &process);
+    pthread_create(&thread, NULL, listener_thread, &thread_args);
 
     srand(time(NULL) + rank);
 
@@ -25,7 +29,7 @@ void run_logic(const int num_houses, const int num_fences) {
         process.house_ID = select_house(&process, num_houses);
         increment_clock_by_one(&process);
 
-        printf("[P%d] (clock: %d) SELECTED house: %d\n", rank, process.lamport_clock, process.house_ID);
+        custom_printf(fp, "[P%d] (clock: %d) SELECTED house: %d\n", rank, process.lamport_clock, process.house_ID);
 
         // 2.
         increment_clock_by_one(&process); // each process needs to receive the same value! (that's why here, not in for loop in broadcast)
@@ -38,7 +42,7 @@ void run_logic(const int num_houses, const int num_fences) {
         };
 
         process.ack_count = 0;
-        broadcast_message(&process, &req_house, num_processes);
+        broadcast_message(&process, &req_house, num_processes, fp);
         process.state = WAITING_FOR_HOUSE;
 
         // (N - 1) ACK
@@ -47,7 +51,8 @@ void run_logic(const int num_houses, const int num_fences) {
         // 3.
         process.state = ROBBING_HOUSE;
         increment_clock_by_one(&process);
-        printf("[P%d] (clock: %d) ENTERING house: %d\n", rank, process.lamport_clock, process.house_ID);
+        custom_printf(fp, "[P%d] (clock: %d) ENTERING house: %d\n", rank, process.lamport_clock, process.house_ID);
+
         sleep(rand() % 2 + 1);
 
         // 4.
@@ -61,7 +66,7 @@ void run_logic(const int num_houses, const int num_fences) {
         };
 
         process.ack_count = 0;
-        broadcast_message(&process, &req_fence, num_processes);
+        broadcast_message(&process, &req_fence, num_processes, fp);
         process.state = WAITING_FOR_FENCE;
 
         // (N - P) ACK
@@ -69,12 +74,12 @@ void run_logic(const int num_houses, const int num_fences) {
 
         // 5.
         process.state = HAS_FENCE;
-        printf("[P%d] (clock: %d) USING fence \n", rank, process.lamport_clock);
+        custom_printf(fp, "[P%d] (clock: %d) USING fence \n", rank, process.lamport_clock);
         
         // 6.
-        leave_critical_sections(&process);
+        leave_critical_sections(&process, fp);
         process.houses_visited_count++;
-        printf("[P%d] (clock: %d) FINISHED job %d\n", rank, process.lamport_clock, process.houses_visited_count);
+        custom_printf(fp, "[P%d] (clock: %d) FINISHED job %d\n", rank, process.lamport_clock, process.houses_visited_count);
         
         // 7.
         process.state = RESTING;
@@ -82,10 +87,10 @@ void run_logic(const int num_houses, const int num_fences) {
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
-    if (rank == 0) printf("All processes completed their work\n");
+    if (rank == 0) custom_printf(fp, "All processes completed their work\n");
 }
 
-void leave_critical_sections(Process* process) {
+void leave_critical_sections(Process* process, FILE* fp) {
     Request req;
 
     increment_clock_by_one(process);
@@ -100,7 +105,7 @@ void leave_critical_sections(Process* process) {
             .lamport_clock = process->lamport_clock,
             .house_ID = -1
         };
-        send_message(process, &ack, req.rank);
+        send_message(process, &ack, req.rank, fp);
     }
 
     // fence queue
@@ -113,6 +118,6 @@ void leave_critical_sections(Process* process) {
             .lamport_clock = process->lamport_clock,
             .house_ID = -1
         };
-        send_message(process, &ack, req.rank);
+        send_message(process, &ack, req.rank, fp);
     }
 }

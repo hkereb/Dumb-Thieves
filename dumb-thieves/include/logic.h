@@ -11,7 +11,7 @@
 #include "queue.h"
 #include "process.h"
 
-void run_logic(int num_houses, int num_fences);
-void leave_critical_sections(Process* process);
+void run_logic(int num_houses, int num_fences, FILE* fp);
+void leave_critical_sections(Process* process, FILE* fp);
 
 #endif //LOGIC_H

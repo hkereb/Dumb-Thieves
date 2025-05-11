@@ -20,9 +20,14 @@ typedef struct Message {
     int house_ID;
 } Message;
 
-void send_message(Process* process, Message* msg, int dest);
-void receive_message(Process* process, Message* msg, int* source);
-void broadcast_message(Process* process, Message* msg, int num_processes);
+typedef struct {
+    Process* process;
+    FILE* fp;
+} ThreadArgs;
+
+void send_message(Process* process, Message* msg, int dest, FILE* fp);
+void receive_message(Process* process, Message* msg, int* source, FILE* fp);
+void broadcast_message(Process* process, Message* msg, int num_processes, FILE* fp);
 void wait_for_ack(Process* process, int min_ack_num);
 void* listener_thread(void* arg);
 

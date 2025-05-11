@@ -4,26 +4,26 @@
 #include <unistd.h>
 #include <time.h>
 
-void send_message(Process* process, Message* msg, int dest) {
+void send_message(Process* process, Message* msg, int dest, FILE* fp) {
     MPI_Send(msg, sizeof(Message), MPI_BYTE, dest, 0, MPI_COMM_WORLD);
-    printf("[P%d] (clock: %d) SENT %s to P%d, while %s\n",
+    custom_printf(fp, "[P%d] (clock: %d) SENT %s to P%d, while %s\n",
            process->rank, msg->lamport_clock, msg_type_to_string(msg->type), dest, state_to_string(process->state));
 }
 
-void receive_message(Process* process, Message* msg, int* source) {
+void receive_message(Process* process, Message* msg, int* source, FILE* fp) {
     MPI_Status status;
     MPI_Recv(msg, sizeof(Message), MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     *source = status.MPI_SOURCE;
 
     update_clock_upon_recv(process, msg->lamport_clock);
-    printf("[P%d] (clock: %d) RECEIVED %s from P%d, while %s\n",
+    custom_printf(fp, "[P%d] (clock: %d) RECEIVED %s from P%d, while %s\n",
            process->rank, process->lamport_clock, msg_type_to_string(msg->type), *source, state_to_string(process->state));
 }
 
-void broadcast_message(Process* process, Message* msg, int num_processes) {
+void broadcast_message(Process* process, Message* msg, int num_processes, FILE* fp) {
     for (int i = 0; i < num_processes; i++) {
         if (i != process->rank) {
-            send_message(process, msg, i);
+            send_message(process, msg, i, fp);
         }
     }
 }
@@ -35,27 +35,30 @@ void wait_for_ack(Process* process, int min_ack_num) {
     }
 }
 
-void send_ack(Process* process, int destination_rank) {
+void send_ack(Process* process, int destination_rank, FILE* fp) {
     increment_clock_by_one(process);
     Message ack = {
         .type = MSG_ACK,
         .rank = process->rank,
         .lamport_clock = process->lamport_clock
     };
-    send_message(process, &ack, destination_rank);
+    send_message(process, &ack, destination_rank, fp);
 }
 
 void* listener_thread(void* arg) {
-    Process* process = arg;
+    ThreadArgs* thread_args = (ThreadArgs*)arg;
+    Process* process = thread_args->process;
+    FILE* fp = thread_args->fp;
+
     Message msg;
     int source;
 
     while (true) {
-        receive_message(process, &msg, &source);
+        receive_message(process, &msg, &source, fp);
 
         if (msg.type == MSG_ACK) {
             process->ack_count += 1;
-            printf("[P%d] (clock: %d) My ACK: %d, while %s\n", process->rank, process->lamport_clock, process->ack_count, state_to_string(process->state));
+            custom_printf(fp, "[P%d] (clock: %d) My ACK: %d, while %s\n", process->rank, process->lamport_clock, process->ack_count, state_to_string(process->state));
         }
         else if (msg.type == MSG_REQ_HOUSE || msg.type == MSG_REQ_FENCE) {
             // which queue will they go to
@@ -77,7 +80,7 @@ void* listener_thread(void* arg) {
 
             if (!waiting && !using) {
                 // i dont have it, i dont want it
-                send_ack(process, source);
+                send_ack(process, source, fp);
             }
             else if (waiting) {
                 // i have it or i want it
@@ -96,7 +99,7 @@ void* listener_thread(void* arg) {
                 }
                 else {
                     // you're better, go first
-                    send_ack(process, source);
+                    send_ack(process, source, fp);
                 }
             }
             else {
