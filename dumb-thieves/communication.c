@@ -14,7 +14,8 @@ void receive_message(Process* process, Message* msg, int* source) {
     MPI_Status status;
     MPI_Recv(msg, sizeof(Message), MPI_BYTE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
     *source = status.MPI_SOURCE;
-    process->lamport_clock = max(process->lamport_clock, msg->lamport_clock) + 1;
+
+    update_clock_upon_recv(process, msg->lamport_clock);
     printf("[P%d] (clock: %d) RECEIVED %s from P%d, while %s\n",
            process->rank, process->lamport_clock, msg_type_to_string(msg->type), *source, state_to_string(process->state));
 }
@@ -35,7 +36,7 @@ void wait_for_ack(Process* process, int min_ack_num) {
 }
 
 void send_ack(Process* process, int destination_rank) {
-    process->lamport_clock += 1;
+    increment_clock_by_one(process);
     Message ack = {
         .type = MSG_ACK,
         .rank = process->rank,

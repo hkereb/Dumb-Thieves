@@ -15,8 +15,6 @@
 #include "process.h"
 #include "communication.h"
 
-void increment_clock(Process* process);
-void update_clock(Process* process, int received_time);
 int select_house(Process* process, int num_houses);
 int max(int a, int b);
 const char* state_to_string(ProcessState state);

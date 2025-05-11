@@ -13,10 +13,12 @@ void init_process(Process* process, int rank) {
     init_queue(&process->fence_queue);
 }
 
-void update_lamport_clock(Process* process, int received_lamport_clock) {
+void update_clock_upon_recv(Process* process, int received_lamport_clock) {
     process->lamport_clock = max(process->lamport_clock, received_lamport_clock) + 1;
 };
 
-
+void increment_clock_by_one(Process* process) {
+    process->lamport_clock++;
+}
 
 
