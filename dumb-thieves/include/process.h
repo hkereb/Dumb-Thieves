@@ -19,7 +19,7 @@ typedef struct Process {
     int lamport_clock;
     int last_req_clock;
     int house_ID;
-    int ack_count;
+    volatile int ack_count;
     int houses_visited_count;
     Queue house_queue;
     Queue fence_queue;
